@@ -3,26 +3,21 @@ from pathlib import Path
 from PIL import Image
 import numpy as np
 import chromadb
-from transformers import pipeline
-import logging
+from chromadb.utils.embedding_functions import OpenCLIPEmbeddingFunction
 from tqdm import tqdm
 import threading
 import queue
-import json
 
 # ──────────────────────────────────────────────
 #  KONFIGURACJA
 # ──────────────────────────────────────────────
-with open("config.json", "r", encoding="utf-8") as f:
-    config = json.load(f)
+FOLDER_ZE_ZDJECIAMI = r"F:/POZOSTALOSCI"
+BAZA_DIR             = "./chroma_db"
+ROZSZERZENIA         = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
 
-FOLDER_ZE_ZDJECIAMI = config["FOLDER_ZE_ZDJECIAMI"]
-BAZA_DIR             = config["BAZA_DIR"]
-ROZSZERZENIA         = set(config["ROZSZERZENIA"])
-
-IO_WORKERS    = config["IO_WORKERS"]     # wątki do wczytywania z dysku (HDD: 4, SSD: 8-16)
-BATCH_SIZE    = config["BATCH_SIZE"]    # ile zdjęć trafia jednocześnie do OpenCLIP
-QUEUE_MAXSIZE = config["QUEUE_MAXSIZE"]     # ile batchów czeka w kolejce (pilnuje RAM)
+IO_WORKERS    = 4     # wątki do wczytywania z dysku (HDD: 4, SSD: 8-16)
+BATCH_SIZE    = 16   # ile zdjęć trafia jednocześnie do OpenCLIP
+QUEUE_MAXSIZE = 8     # ile batchów czeka w kolejce (pilnuje RAM)
 
 SENTINEL = None  # sygnał "koniec pracy" dla wątków
 
@@ -30,16 +25,13 @@ SENTINEL = None  # sygnał "koniec pracy" dla wątków
 #  INICJALIZACJA BAZY
 # ──────────────────────────────────────────────
 def zainicjalizuj_baze():
-    logging.getLogger("transformers").setLevel(logging.ERROR)
-    print("Ładowanie modeli (pipeline)...")
-    pipe_image = pipeline("image-feature-extraction", model="openai/clip-vit-base-patch32")
-    pipe_text = pipeline("feature-extraction", model="openai/clip-vit-base-patch32")
-    
+    embedding_function = OpenCLIPEmbeddingFunction()
     client = chromadb.PersistentClient(path=BAZA_DIR)
     collection = client.get_or_create_collection(
-        name="image_search"
+        name="image_search",
+        embedding_function=embedding_function
     )
-    return collection, pipe_image, pipe_text
+    return collection, embedding_function
 
 
 # ──────────────────────────────────────────────
@@ -106,9 +98,9 @@ def worker_batcher(obrazy_queue: queue.Queue, batche_queue: queue.Queue,
 # ──────────────────────────────────────────────
 #  ETAP 3 – EMBEDDINGI + ZAPIS DO CHROMADB
 # ──────────────────────────────────────────────
-def zapisuj_batche(collection, batche_queue: queue.Queue, pipe_image):
+def zapisuj_batche(collection, batche_queue: queue.Queue):
     """
-    Pobiera batche, generuje embeddingi przez HF Pipeline i zapisuje do ChromaDB.
+    Pobiera batche, generuje embeddingi przez OpenCLIP i zapisuje do ChromaDB.
     """
     while True:
         item = batche_queue.get()
@@ -116,11 +108,7 @@ def zapisuj_batche(collection, batche_queue: queue.Queue, pipe_image):
             break
         ids, images, metas = item
         try:
-            embeddings = []
-            for arr in images:
-                out = pipe_image(Image.fromarray(arr))
-                embeddings.append(np.array(out).flatten().tolist())
-            collection.add(ids=ids, embeddings=embeddings, metadatas=metas)
+            collection.add(ids=ids, images=images, metadatas=metas)
         except Exception as e:
             tqdm.write(f"Błąd zapisu batcha: {e}")
 
@@ -128,7 +116,7 @@ def zapisuj_batche(collection, batche_queue: queue.Queue, pipe_image):
 # ──────────────────────────────────────────────
 #  GŁÓWNA FUNKCJA INDEKSOWANIA
 # ──────────────────────────────────────────────
-def indeksuj_folder(collection, folder_path, pipe_image, io_workers=IO_WORKERS):
+def indeksuj_folder(collection, folder_path, io_workers=IO_WORKERS):
     path = Path(folder_path)
     if not path.exists():
         print(f"Błąd: Folder '{folder_path}' nie istnieje!")
@@ -145,7 +133,7 @@ def indeksuj_folder(collection, folder_path, pipe_image, io_workers=IO_WORKERS):
         return True
 
     print(f"Znaleziono {len(pliki_do_dodania)} nowych zdjęć.")
-    print(f"Pipeline: {io_workers}x I/O → batcher ({BATCH_SIZE}/batch) → HF Pipeline → ChromaDB\n")
+    print(f"Pipeline: {io_workers}x I/O → batcher ({BATCH_SIZE}/batch) → OpenCLIP → ChromaDB\n")
 
     pliki_queue  = queue.Queue()
     obrazy_queue = queue.Queue()
@@ -187,8 +175,8 @@ def indeksuj_folder(collection, folder_path, pipe_image, io_workers=IO_WORKERS):
     pbar.close()
     print("\nGeneruję embeddingi i zapisuję do bazy...")
 
-    # Główny wątek: HF Pipeline + ChromaDB
-    zapisuj_batche(collection, batche_queue, pipe_image)
+    # Główny wątek: OpenCLIP + ChromaDB
+    zapisuj_batche(collection, batche_queue)
     batcher_thread.join()
 
     print("Indeksowanie zakończone!")
@@ -198,13 +186,10 @@ def indeksuj_folder(collection, folder_path, pipe_image, io_workers=IO_WORKERS):
 # ──────────────────────────────────────────────
 #  WYSZUKIWANIE
 # ──────────────────────────────────────────────
-def wyszukaj_zdjecie(collection, zapytanie, pipe_text, limit=3):
+def wyszukaj_zdjecie(collection, zapytanie, limit=3):
     print(f"\nSzukam: '{zapytanie}'...")
-    out = pipe_text(zapytanie)
-    query_emb = np.array(out).flatten().tolist()
-    
     wyniki = collection.query(
-        query_embeddings=[query_emb],
+        query_texts=[zapytanie],
         n_results=limit
     )
 
@@ -224,10 +209,10 @@ def wyszukaj_zdjecie(collection, zapytanie, pipe_text, limit=3):
 #  MAIN
 # ──────────────────────────────────────────────
 if __name__ == "__main__":
-    baza, pipe_img, pipe_txt = zainicjalizuj_baze()
-    if indeksuj_folder(baza, FOLDER_ZE_ZDJECIAMI, pipe_img, io_workers=IO_WORKERS):
+    baza, ef = zainicjalizuj_baze()
+    if indeksuj_folder(baza, FOLDER_ZE_ZDJECIAMI, io_workers=IO_WORKERS):
         while True:
             zapytanie = input("Wpisz opis zdjęcia (lub 'q' aby wyjść): ").strip()
             if zapytanie.lower() == "q" or not zapytanie:
                 break
-            wyszukaj_zdjecie(baza, zapytanie, pipe_txt, limit=3)
+            wyszukaj_zdjecie(baza, zapytanie, limit=3)

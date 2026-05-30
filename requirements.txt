@@ -1,0 +1,6 @@
+chromadb
+transformers
+torch
+tqdm
+Pillow
+numpy

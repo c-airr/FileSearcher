@@ -2,7 +2,7 @@
   "FOLDER_ZE_ZDJECIAMI": "F:/POZOSTALOSCI",
   "BAZA_DIR": "./chroma_db",
   "ROZSZERZENIA": [".jpg", ".jpeg", ".png", ".webp", ".bmp"],
-  "IO_WORKERS": 16,
-  "BATCH_SIZE": 128,
-  "QUEUE_MAXSIZE": 32
+  "IO_WORKERS": 4,
+  "BATCH_SIZE": 16,
+  "QUEUE_MAXSIZE": 8
 }

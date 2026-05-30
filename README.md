@@ -61,3 +61,7 @@
 
 4. **Search and have fun!**
    Once the database is built, a prompt will appear in the command line. Type what you are looking for and enjoy the results!
+
+---
+
+<sub>*projekt stworzony przy użyciu AI (claude opus 4.7, gemini 3.5 flash, gemini 3.1 pro (antigravity))*</sub>
