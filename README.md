@@ -4,6 +4,8 @@
 
 **FileSearcher** to program, który indeksuje zdjęcia na Twoim dysku przy użyciu sztucznej inteligencji (HF Transformers Pipeline + ChromaDB), pozwalając na późniejsze wyszukiwanie obrazów za pomocą naturalnych opisów tekstowych (zrozumiałych dla człowieka).
 
+![FileSearcher w terminalu](docs/screenshots/search.png)
+
 ## ✨ Główne funkcje
 - Szybkie indeksowanie tysięcy obrazów przy użyciu wielowątkowości.
 - Przetwarzanie i kodowanie zdjęć w lokalnej bazie danych wektorowych (ChromaDB).
@@ -35,6 +37,8 @@
 # 🇬🇧 English Version
 
 **FileSearcher** is an application that indexes photos on your drive using AI (HF Transformers Pipeline + ChromaDB), allowing you to search for images later using natural text descriptions.
+
+![FileSearcher in a terminal](docs/screenshots/search.png)
 
 ## ✨ Key Features
 - Fast indexing of thousands of images using multi-threading.
