@@ -21,7 +21,7 @@ BAZA_DIR             = config["BAZA_DIR"]
 ROZSZERZENIA         = set(config["ROZSZERZENIA"])
 
 IO_WORKERS    = config["IO_WORKERS"]     # wątki do wczytywania z dysku (HDD: 4, SSD: 8-16)
-BATCH_SIZE    = config["BATCH_SIZE"]    # ile zdjęć trafia jednocześnie do OpenCLIP
+BATCH_SIZE    = config["BATCH_SIZE"]    # ile zdjęć trafia jednocześnie do modelu
 QUEUE_MAXSIZE = config["QUEUE_MAXSIZE"]     # ile batchów czeka w kolejce (pilnuje RAM)
 
 SENTINEL = None  # sygnał "koniec pracy" dla wątków
