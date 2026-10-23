@@ -126,13 +126,16 @@ class Store:
                 )
         return ids
 
-    def remove_paths(self, paths: Iterable[str]):
+    def remove_paths(self, paths: Iterable[str]) -> list[int]:
+        removed = []
         with self._lock, self._db:
             for path in paths:
                 row = self._db.execute("SELECT id FROM images WHERE path = ?", (path,)).fetchone()
                 if row:
                     self._db.execute("DELETE FROM teksty WHERE rowid = ?", row)
                     self._db.execute("DELETE FROM images WHERE id = ?", row)
+                    removed.append(row[0])
+        return removed
 
     def clear_all(self):
         with self._lock, self._db:

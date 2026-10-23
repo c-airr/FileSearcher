@@ -40,3 +40,10 @@ def test_one_result_per_image():
 
 def test_empty_index():
     assert VectorIndex(3).search(unit(1, 0, 0), "image", 5) == []
+
+
+def test_removed_images_not_returned():
+    idx = VectorIndex(3)
+    idx.add([1, 2], ["full", "full"], np.stack([unit(1, 0, 0), unit(1, 0.1, 0)]))
+    idx.remove([1])
+    assert [h[0] for h in idx.search(unit(1, 0, 0), "image", 5)] == [2]

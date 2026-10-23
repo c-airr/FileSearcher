@@ -7,6 +7,7 @@ import numpy as np
 KIND_CODES = {"full": 0, "tile0": 1, "tile1": 2, "tile2": 3, "tile3": 4, "text": 5}
 KIND_NAMES = {v: k for k, v in KIND_CODES.items()}
 TEXT_CODE = KIND_CODES["text"]
+REMOVED_CODE = -1
 ROWS_PER_IMAGE = 5  # pełny kadr + 4 wycinki
 
 
@@ -59,6 +60,11 @@ class VectorIndex:
                 self._mat[start:end] = vecs
             self._n = end
 
+    def remove(self, image_ids: Sequence[int]):
+        with self._lock:
+            dead = np.isin(self._ids[: self._n], np.asarray(list(image_ids), dtype=np.int64))
+            self._codes[: self._n][dead] = REMOVED_CODE
+
     def _similarities(self, query: np.ndarray) -> np.ndarray:
         if self._torch is not None:
             q = self._torch.from_numpy(np.asarray(query, dtype=np.float32)).to(self._mat.device, self._mat.dtype)
@@ -73,7 +79,7 @@ class VectorIndex:
             sims = self._similarities(query)
             ids = self._ids[: self._n].copy()
             codes = self._codes[: self._n].copy()
-        in_group = codes == TEXT_CODE if group == "text" else codes != TEXT_CODE
+        in_group = codes == TEXT_CODE if group == "text" else (codes != TEXT_CODE) & (codes != REMOVED_CODE)
         sims = np.where(in_group, sims, -np.inf)
         m = min(len(sims), k * (1 if group == "text" else ROWS_PER_IMAGE))
         top = np.argpartition(-sims, m - 1)[:m]

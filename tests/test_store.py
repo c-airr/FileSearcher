@@ -92,3 +92,9 @@ def test_reopen_persists(tmp_path):
     s2 = Store(tmp_path / "i.sqlite")
     assert s2.get_meta("dim") == "3"
     assert s2.file_states() == {"a.jpg": (1.0, 10)}
+
+
+def test_remove_paths_returns_ids(tmp_path):
+    s = Store(tmp_path / "i.sqlite")
+    image_id = add(s, "x.jpg")
+    assert s.remove_paths(["x.jpg", "brak.jpg"]) == [image_id]
