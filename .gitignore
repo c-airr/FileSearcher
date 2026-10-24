@@ -4,3 +4,5 @@ __pycache__/
 .superpowers/
 filesearcher_db/
 chroma_db/
+dist/
+build/

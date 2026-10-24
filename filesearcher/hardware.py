@@ -18,6 +18,7 @@ class HardwareInfo:
     vram_gb: float | None
     capability: tuple[int, int] | None
     arch_list: list[str]
+    is_rocm: bool = False  # PyTorch z ROCm (Radeon) udaje przed programem CUDA
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ def detect() -> HardwareInfo:
         vram_gb=props.total_memory / 1024**3,
         capability=(props.major, props.minor),
         arch_list=list(torch.cuda.get_arch_list()),
+        is_rocm=getattr(torch.version, "hip", None) is not None,
     )
 
 
@@ -65,7 +67,7 @@ def pick_profile_name(vram_gb: float | None) -> str:
 
 def torch_problem(hw: HardwareInfo) -> str | None:
     """Komunikat, gdy zainstalowany PyTorch nie obsługuje tej karty."""
-    if hw.device != "cuda" or hw.capability is None:
+    if hw.device != "cuda" or hw.capability is None or hw.is_rocm:
         return None
     arch = f"sm_{hw.capability[0]}{hw.capability[1]}"
     if hw.capability[0] >= 12 and arch not in hw.arch_list:

@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Testy
+        run: |
+          python -m pip install pytest pillow numpy tqdm
+          python -m pytest -q
+
+      - name: Budowanie paczki
+        shell: pwsh
+        run: |
+          python -m pip install pyinstaller
+          ./packaging/build_windows.ps1
+
+      - name: Paczka jako artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileSearcher-windows-x64
+          path: dist/FileSearcher-windows-x64.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/FileSearcher-windows-x64.zip
+          generate_release_notes: true

@@ -41,7 +41,24 @@ Program sam wybiera profil według pamięci karty graficznej (można go wymusić
 
 Modele pobierają się z Hugging Face przy pierwszym uruchomieniu (kilka GB).
 
-## 🚀 Instalacja
+## 💾 Wersja dla Windows (bez instalowania Pythona)
+
+1. Pobierz `FileSearcher-windows-x64.zip` z [najnowszego wydania](https://github.com/c-airr/FileSearcher/releases/latest) i rozpakuj w dowolnym miejscu (potrzeba ok. 10 GB wolnego miejsca na biblioteki i modele).
+2. Uruchom `FileSearcher.exe`. Przy pierwszym starcie program:
+   - wykrywa kartę graficzną i instaluje pasującego PyTorcha (ok. 3 GB, jednorazowo),
+   - pyta o folder ze zdjęciami i zapisuje go w `config.json`,
+   - pobiera modele do folderu `modele` obok programu.
+3. Kolejne uruchomienia startują od razu.
+
+| Karta | Co się instaluje |
+|---|---|
+| NVIDIA (np. RTX 5070) | PyTorch z CUDA 12.8 |
+| Radeon RX 7700/7800/7900, RX 9060/9070, AI PRO R9700 | PyTorch ROCm od AMD (wymaga sterownika Adrenalin 26.2.2 lub nowszego) |
+| starszy Radeon (np. RX 6000, RX 7600), Intel, brak karty | PyTorch na CPU – profil `lite` |
+
+Jeśli instalacja wersji z GPU się nie uda, program sam zainstaluje wersję na CPU. Na Radeonach nie ma kwantyzacji 4-bit, więc opisy robi mniejszy model Qwen3-VL-2B.
+
+## 🚀 Instalacja ze źródeł
 
 Wymagany Python 3.10 lub nowszy.
 

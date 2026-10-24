@@ -44,3 +44,8 @@ def test_forced_lite_on_gpu():
 def test_forced_profile_on_cpu_uses_cpu():
     p = resolve_profile("high", CPU)
     assert p.name == "high" and p.device == "cpu"
+
+
+def test_rocm_gfx1200_is_not_flagged_as_blackwell():
+    hw = HardwareInfo("cuda", "AMD Radeon RX 9070 XT", 15.9, (12, 0), ["gfx1200", "gfx1201"], is_rocm=True)
+    assert torch_problem(hw) is None
