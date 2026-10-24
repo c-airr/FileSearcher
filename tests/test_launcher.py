@@ -111,3 +111,15 @@ def test_app_command_and_env(tmp_path):
     assert cmd[1:4] == ["-m", "filesearcher", "--config"] and cmd[-1] == "--x"
     env = launcher.app_env(tmp_path, {})
     assert env["HF_HOME"] == str(tmp_path / "modele") and env["PYTHONUTF8"] == "1"
+
+
+def test_check_survives_cp1252_console(monkeypatch, tmp_path):
+    import io
+
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252"))
+    monkeypatch.setattr(launcher, "app_root", lambda: tmp_path)
+    monkeypatch.setattr(launcher, "detect_gpus", lambda: ["AMD Radeon RX 9070 XT"])
+    launcher.main(["--check"])
+    sys.stdout.flush()
+    assert "AMD ROCm" in raw.getvalue().decode("utf-8")

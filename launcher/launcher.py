@@ -158,7 +158,17 @@ def app_root() -> Path:
     return Path(__file__).resolve().parent.parent / "dist" / "FileSearcher"
 
 
+def _utf8_console():
+    # Konsola Windows bywa w cp1252/cp852 – bez tego „→” albo „…” kończy program wyjątkiem.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv=None) -> int:
+    _utf8_console()
     argv = list(sys.argv[1:] if argv is None else argv)
     root = app_root()
     gpus = detect_gpus()
