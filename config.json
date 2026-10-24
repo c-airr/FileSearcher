@@ -1,8 +1,11 @@
 {
   "FOLDER_ZE_ZDJECIAMI": "F:/POZOSTALOSCI",
-  "BAZA_DIR": "./chroma_db",
+  "BAZA_DIR": "./filesearcher_db",
   "ROZSZERZENIA": [".jpg", ".jpeg", ".png", ".webp", ".bmp"],
   "IO_WORKERS": 4,
   "BATCH_SIZE": 16,
-  "QUEUE_MAXSIZE": 8
+  "QUEUE_MAXSIZE": 8,
+  "PROFIL": "auto",
+  "OPISY": true,
+  "WYNIKI": 5
 }

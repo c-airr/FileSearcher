@@ -1,6 +1,10 @@
-chromadb
-transformers
+# PyTorch z obsługą GPU instaluj osobno (patrz README) – dla RTX 50xx z indeksu cu128.
 torch
-tqdm
-Pillow
+transformers>=4.57
+sentence-transformers[image]>=5.4
+accelerate
+pillow
 numpy
+tqdm
+# Profile high/mid (model opisów w 4-bit). Bez niego program użyje mniejszego modelu.
+bitsandbytes>=0.45
