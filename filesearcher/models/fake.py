@@ -51,6 +51,7 @@ class FakeDescriber:
         self.fn = fn
         self.delay = delay
         self.model_id = model_id
+        self.batch_sizes: list[int] = []
 
     def describe(self, image):
         if self.delay:
@@ -59,3 +60,22 @@ class FakeDescriber:
             return self.fn(image)
         rgb = np.asarray(image.convert("RGB"), dtype=np.float32).reshape(-1, 3).mean(0)
         return Description(f"{_color_name(rgb)} obraz", "")
+
+    def describe_batch(self, images):
+        self.batch_sizes.append(len(images))
+        return [self.describe(img) for img in images]
+
+
+class FakeReader:
+    """OCR do testów: tekst z funkcji albo nazwa koloru wielkimi literami."""
+
+    model_id = "fake/ocr"
+
+    def __init__(self, fn=None):
+        self.fn = fn
+
+    def read(self, image):
+        if self.fn:
+            return self.fn(image)
+        rgb = np.asarray(image.convert("RGB"), dtype=np.float32).reshape(-1, 3).mean(0)
+        return _color_name(rgb).upper()

@@ -36,7 +36,7 @@ def ensure_embedder(store: Store, embedder, ask) -> bool:
     return True
 
 
-def open_app(config, embedder, describer, ask, device: str = "cpu") -> App | None:
+def open_app(config, embedder, describer, ask, device: str = "cpu", reader=None) -> App | None:
     store = Store(config.baza_dir / DB_FILE)
     if not ensure_embedder(store, embedder, ask):
         store.close()
@@ -47,6 +47,8 @@ def open_app(config, embedder, describer, ask, device: str = "cpu") -> App | Non
         index.add(ids, kinds, mat)
     arbiter = GpuArbiter()
     background = None
-    if describer is not None and config.opisy:
-        background = BackgroundDescriber(store, index, embedder, describer, arbiter, config.baza_dir / LOG_FILE)
+    if (describer is not None or reader is not None) and config.opisy:
+        background = BackgroundDescriber(
+            store, index, embedder, describer, arbiter, config.baza_dir / LOG_FILE, reader=reader
+        )
     return App(config, store, index, embedder, arbiter, background)

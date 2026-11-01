@@ -15,3 +15,6 @@ class EasyOCRDescriber:
     def describe(self, image) -> Description:
         lines = self.reader.readtext(np.asarray(image.convert("RGB")), detail=0, paragraph=True)
         return Description("", " ".join(lines).strip())
+
+    def describe_batch(self, images) -> list[Description]:
+        return [self.describe(img) for img in images]

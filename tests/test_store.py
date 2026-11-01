@@ -98,3 +98,23 @@ def test_remove_paths_returns_ids(tmp_path):
     s = Store(tmp_path / "i.sqlite")
     image_id = add(s, "x.jpg")
     assert s.remove_paths(["x.jpg", "brak.jpg"]) == [image_id]
+
+
+def test_migration_adds_ocr_and_redoes_old_descriptions(tmp_path):
+    import sqlite3
+
+    db = tmp_path / "old.sqlite"
+    con = sqlite3.connect(db)
+    con.executescript(
+        "CREATE TABLE images (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, mtime REAL NOT NULL, "
+        "size INTEGER NOT NULL, opis_status INTEGER NOT NULL DEFAULT 0, opis_error TEXT, opis TEXT, tekst TEXT);"
+        "INSERT INTO images(path, mtime, size, opis_status, opis) VALUES ('a.png', 1, 1, 1, '{\"opis\": \"ucie');"
+    )
+    con.commit()
+    con.close()
+    s = Store(db)
+    assert s.pending_ocr() == [(1, "a.png")] and s.counts().done == 0
+    s.save_ocr(1, "Łódź Kaliska", None)
+    assert s.fts_search("lodz", 5) == [1] and s.pending_ocr() == []
+    s.close()
+    assert Store(db).counts().total == 1  # ponowne otwarcie nie migruje drugi raz

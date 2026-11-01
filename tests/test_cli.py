@@ -105,7 +105,10 @@ def test_main_smoke(tmp_path, make_image, monkeypatch, capsys):
     from filesearcher import hardware, models
 
     monkeypatch.setattr(hardware, "detect", lambda: hardware.HardwareInfo("cpu", None, None, None, []))
-    monkeypatch.setattr(models, "load_models", lambda profile, log=print: ModelBundle(FakeEmbedder(), FakeDescriber()))
+    monkeypatch.setattr(models, "load_reader", lambda log=print: None)
+    monkeypatch.setattr(
+        models, "load_models", lambda profile, log=print, reader=None: ModelBundle(FakeEmbedder(), FakeDescriber())
+    )
     monkeypatch.setattr("builtins.input", feed(["zielony", "q"]))
     assert cli.main(["--config", str(cfg)]) == 0
     out = capsys.readouterr().out

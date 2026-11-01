@@ -30,6 +30,16 @@ class Describer(Protocol):
 
     def describe(self, image: Image.Image) -> Description: ...
 
+    def describe_batch(self, images: list[Image.Image]) -> list[Description]: ...
+
+
+class TextReader(Protocol):
+    """Szybki OCR (np. Windows) – gdy jest, opisujacy model nie przepisuje tekstu."""
+
+    model_id: str
+
+    def read(self, image: Image.Image) -> str: ...
+
 
 def l2_normalize(a: np.ndarray) -> np.ndarray:
     a = np.asarray(a, dtype=np.float32)
@@ -38,10 +48,15 @@ def l2_normalize(a: np.ndarray) -> np.ndarray:
 
 
 _JSON_OBJECT = re.compile(r"\{.*\}", re.DOTALL)
+_LABELED = re.compile(r"^\s*OPIS:\s*(?P<opis>.*?)(?:^\s*TEKST:\s*(?P<tekst>.*))?\Z", re.DOTALL | re.MULTILINE)
 
 
 def parse_description(raw: str) -> Description:
-    """Odpowiedź VLM → Description. Gdy to nie JSON, całość idzie do opisu."""
+    """Odpowiedź VLM → Description. Format „OPIS: … TEKST: …” (odporny na ucięcie na limicie
+    tokenów) albo JSON; gdy żaden, całość idzie do opisu."""
+    labeled = _LABELED.match(raw)
+    if labeled:
+        return Description(labeled["opis"].strip(), (labeled["tekst"] or "").strip())
     match = _JSON_OBJECT.search(raw)
     if match:
         try:

@@ -86,8 +86,18 @@ def main(argv=None) -> int:
     print(f"  opisy i OCR: {profile.describer_id if config.opisy else 'wyłączone'}")
 
     print("Ładowanie modeli…")
-    bundle = models.load_models(profile)
-    app = open_app(config, bundle.embedder, bundle.describer if config.opisy else None, _ask, device=profile.device)
+    reader = models.load_reader() if config.opisy else None
+    if reader is not None:
+        print(f"  OCR: Windows OCR ({reader.language})")
+    bundle = models.load_models(profile, reader=reader)
+    app = open_app(
+        config,
+        bundle.embedder,
+        bundle.describer if config.opisy else None,
+        _ask,
+        device=profile.device,
+        reader=bundle.reader,
+    )
     if app is None:
         print("Bez przebudowy bazy nie mogę użyć nowego modelu. Kończę.")
         return 1

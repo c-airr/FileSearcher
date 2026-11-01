@@ -65,6 +65,13 @@ class VectorIndex:
             dead = np.isin(self._ids[: self._n], np.asarray(list(image_ids), dtype=np.int64))
             self._codes[: self._n][dead] = REMOVED_CODE
 
+    def remove_text(self, image_ids: Sequence[int]):
+        """Tylko wektory tekstu – przed dodaniem nowszych (OCR → OCR + opis)."""
+        with self._lock:
+            codes = self._codes[: self._n]
+            dead = np.isin(self._ids[: self._n], np.asarray(list(image_ids), dtype=np.int64)) & (codes == TEXT_CODE)
+            codes[dead] = REMOVED_CODE
+
     def _similarities(self, query: np.ndarray) -> np.ndarray:
         if self._torch is not None:
             q = self._torch.from_numpy(np.asarray(query, dtype=np.float32)).to(self._mat.device, self._mat.dtype)

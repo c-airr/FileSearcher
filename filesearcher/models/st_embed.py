@@ -7,6 +7,15 @@ EMBED_DIM = 1024  # Matryoshka: obie rodziny modeli dobrze znoszą przycięcie d
 QWEN_MAX_PIXELS = 600 * 600
 
 
+_MEDIA_PREFIX = ("http://", "https://", "data:")
+_MEDIA_SUFFIX = (".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp")
+
+
+def as_plain_text(text: str) -> str:
+    """sentence-transformers bierze tekst wygladajacy jak URL/sciezka obrazu za obraz (OCR potrafi dac sam adres); spacja na poczatku to blokuje."""
+    return " " + text if text.startswith(_MEDIA_PREFIX) or text.lower().endswith(_MEDIA_SUFFIX) else text
+
+
 class SentenceTransformerEmbedder:
     def __init__(self, model_id: str, device: str):
         import torch
@@ -29,4 +38,4 @@ class SentenceTransformerEmbedder:
         return self._encode(list(images))
 
     def embed_texts(self, texts):
-        return self._encode(list(texts))
+        return self._encode([as_plain_text(t) for t in texts])

@@ -34,3 +34,21 @@ def test_fake_embedder_matches_color_word():
 def test_fake_describer_default_uses_color():
     d = FakeDescriber().describe(Image.new("RGB", (8, 8), (20, 200, 20)))
     assert "zielony" in d.opis
+
+
+def test_parse_labeled_format():
+    raw = "OPIS: Okno Discorda z czatem.\n\nTEKST: pansage\ntaką pozę mi dali"
+    assert parse_description(raw) == Description("Okno Discorda z czatem.", "pansage\ntaką pozę mi dali")
+
+
+def test_as_plain_text_blocks_url_like_text():
+    from filesearcher.models.st_embed import as_plain_text
+
+    assert as_plain_text("https://cdn.discordapp.com/a/attachment.gif") == " https://cdn.discordapp.com/a/attachment.gif"
+    assert as_plain_text("Zdjecie.PNG") == " Zdjecie.PNG"
+    assert as_plain_text("zwykly tekst z https://x.pl w srodku") == "zwykly tekst z https://x.pl w srodku"
+
+
+def test_parse_labeled_truncated_and_without_text():
+    assert parse_description("OPIS: Ekran z wykresem\nTEKST: Your usa") == Description("Ekran z wykresem", "Your usa")
+    assert parse_description("OPIS: Kot na kanapie.") == Description("Kot na kanapie.", "")

@@ -89,7 +89,15 @@ class Store:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript(SCHEMA)
+        self._migrate()
         self._db.commit()
+
+    def _migrate(self):
+        columns = {r[1] for r in self._db.execute("PRAGMA table_info(images)")}
+        if "ocr_status" not in columns:
+            # Stare opisy z JSON-a bywaly uciete na limicie tokenow – liczymy je od nowa nowym formatem.
+            self._db.execute("ALTER TABLE images ADD COLUMN ocr_status INTEGER NOT NULL DEFAULT 0")
+            self._db.execute("UPDATE images SET opis_status = 0, opis_error = NULL")
 
     def close(self):
         with self._lock:
@@ -162,22 +170,51 @@ class Store:
         )[0]
         return Counts(total, done, failed)
 
+    def pending_ocr(self) -> list[tuple[int, str]]:
+        return [tuple(r) for r in self._read("SELECT id, path FROM images WHERE ocr_status = 0 ORDER BY id")]
+
+    def ocr_counts(self) -> tuple[int, int]:
+        """(zrobione, wszystkie) – błąd OCR też liczy się jako zrobione."""
+        return tuple(self._read("SELECT COALESCE(SUM(ocr_status != 0), 0), COUNT(*) FROM images")[0])
+
+    def save_ocr(self, image_id: int, tekst: str | None, text_vec: np.ndarray | None):
+        """tekst=None oznacza błąd OCR: zdjęcie nie wraca do kolejki, opis i tak je obejmie."""
+        with self._lock, self._db:
+            if tekst is None:
+                self._db.execute("UPDATE images SET ocr_status = -1 WHERE id = ?", (image_id,))
+                return
+            self._db.execute("UPDATE images SET ocr_status = 1, tekst = ? WHERE id = ?", (tekst, image_id))
+            self._write_text_index(image_id, text_vec)
+
     def save_description(self, image_id: int, desc: Description, text_vec: np.ndarray | None):
+        """Pusty desc.tekst zostawia tekst z OCR."""
         with self._lock, self._db:
             self._db.execute(
-                "UPDATE images SET opis_status = 1, opis_error = NULL, opis = ?, tekst = ? WHERE id = ?",
-                (desc.opis, desc.tekst, image_id),
+                "UPDATE images SET opis_status = 1, opis_error = NULL, opis = ?, "
+                "tekst = CASE WHEN ? = '' THEN tekst ELSE ? END WHERE id = ?",
+                (desc.opis, desc.tekst, desc.tekst, image_id),
             )
-            self._db.execute("DELETE FROM teksty WHERE rowid = ?", (image_id,))
+            self._write_text_index(image_id, text_vec)
+
+    def get_text(self, image_id: int) -> tuple[str, str]:
+        row = self._read("SELECT opis, tekst FROM images WHERE id = ?", (image_id,))
+        return (row[0][0] or "", row[0][1] or "") if row else ("", "")
+
+    def _write_text_index(self, image_id: int, text_vec: np.ndarray | None):
+        """FTS i wektor tekstu z tego, co jest w wierszu; wolac pod blokada i w transakcji."""
+        row = self._db.execute("SELECT opis, tekst FROM images WHERE id = ?", (image_id,)).fetchone()
+        if row is None:  # plik usuniety w miedzyczasie
+            return
+        self._db.execute("DELETE FROM teksty WHERE rowid = ?", (image_id,))
+        self._db.execute(
+            "INSERT INTO teksty(rowid, opis, tekst) VALUES (?, ?, ?)", (image_id, fold(row[0] or ""), fold(row[1] or ""))
+        )
+        self._db.execute("DELETE FROM vectors WHERE image_id = ? AND kind = 'text'", (image_id,))
+        if text_vec is not None:
             self._db.execute(
-                "INSERT INTO teksty(rowid, opis, tekst) VALUES (?, ?, ?)", (image_id, fold(desc.opis), fold(desc.tekst))
+                "INSERT INTO vectors(image_id, kind, vec) VALUES (?, 'text', ?)",
+                (image_id, np.asarray(text_vec, dtype=np.float16).tobytes()),
             )
-            self._db.execute("DELETE FROM vectors WHERE image_id = ? AND kind = 'text'", (image_id,))
-            if text_vec is not None:
-                self._db.execute(
-                    "INSERT INTO vectors(image_id, kind, vec) VALUES (?, 'text', ?)",
-                    (image_id, np.asarray(text_vec, dtype=np.float16).tobytes()),
-                )
 
     def mark_failed(self, image_id: int, error: str):
         with self._lock, self._db:
