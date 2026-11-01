@@ -56,7 +56,7 @@ class QwenVLDescriber:
             add_generation_prompt=True,
             return_dict=True,
             return_tensors="pt",
-            padding=True,
+            processor_kwargs={"padding": True},
         ).to(self.model.device)
         with self._torch.inference_mode():
             generated = self.model.generate(**inputs, max_new_tokens=self._max_tokens, do_sample=False)
