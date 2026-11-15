@@ -7,13 +7,18 @@
 Indeksowanie ma dwie fazy:
 
 1. **Szybka faza – wektory obrazu.** Każde zdjęcie (i dodatkowo jego 4 wycinki, żeby łapać drobne obiekty) trafia do wielojęzycznego modelu wektorowego. Po tej fazie można już szukać.
-2. **Druga faza w tle – opisy i OCR.** Model językowy z obrazem pisze szczegółowy opis sceny i przepisuje cały widoczny tekst (szyldy, dokumenty, zrzuty ekranu). Postęp widać nad każdym zapytaniem:
+2. **Druga faza w tle – OCR i zwięzłe opisy.** Składa się z dwóch etapów:
+   - **Szybki OCR (Windows OCR):** Wbudowany silnik systemowy (`Windows.Media.Ocr`) natychmiast przepisuje widoczny tekst (zrzuty ekranu, komunikatory, kody, dokumenty) z pełnej rozdzielczości z prędkością ok. **20 zdjęć/s** na CPU. Po tym etapie cały tekst jest już wyszukiwalny.
+   - **Opisy scen (Qwen3-VL w paczkach):** Model widzenia generuje zwięzłe opisy (1–3 zdania w formacie `OPIS:`) w paczkach (batch 8). Jeśli OCR wyciągnął tekst wcześniej, model skupia się wyłącznie na opisie sceny, co znacząco przyspiesza generowanie i eliminuje ucinanie tokenów. Przy braku pamięci VRAM paczka jest automatycznie dzielona na pół.
+
+   Postęp widać nad każdym zapytaniem w terminalu (najpierw etap OCR, a potem Opisy):
 
    ```
-   [Opisy i OCR: 1 240 / 10 000 · 12% · 0,9 zdj/s · ~2 h 42 min]
+   [OCR: 2 100 / 5 302 · 40% · 21,4 zdj/s · ~2 min]
+   [Opisy: 1 240 / 5 302 · 23% · 0,9 zdj/s · ~1 h 15 min]
    ```
 
-   Faza 2 zapisuje każde zdjęcie od razu, więc po przerwaniu wznawia się od miejsca, w którym skończyła.
+   Faza 2 zapisuje postęp na bieżąco w bazie SQLite, więc po przerwaniu program wznawia się dokładnie od miejsca, w którym skończył.
 
 Zapytanie przeszukuje trzy źródła naraz (obraz, opisy, tekst z OCR) i łączy wyniki. Przy każdym wyniku widać, skąd się wziął:
 
@@ -30,14 +35,15 @@ Kolejne uruchomienia przetwarzają tylko nowe i zmienione pliki, a usunięte z d
 
 Program sam wybiera profil według pamięci karty graficznej (można go wymusić kluczem `PROFIL` w `config.json`):
 
-| Profil | VRAM | Wektory obrazu | Opisy i OCR |
-|---|---|---|---|
-| `max` | ≥ 16 GB | Qwen3-VL-Embedding-2B | Qwen3-VL-4B |
-| `high` | 10–16 GB (np. RTX 5070) | Qwen3-VL-Embedding-2B | Qwen3-VL-4B w 4-bit* |
-| `mid` | 6–10 GB | Qwen3-VL-Embedding-2B | Qwen3-VL-2B w 4-bit* |
-| `lite` | < 6 GB lub CPU | jina-clip-v2 | sam OCR (EasyOCR, opcjonalnie) |
+| Profil | VRAM | Wektory obrazu | Opisy scen | Silnik OCR |
+|---|---|---|---|---|
+| `max` | ≥ 16 GB | Qwen3-VL-Embedding-2B | Qwen3-VL-4B | Windows OCR (lub model) |
+| `high` | 10–16 GB (np. RTX 5070) | Qwen3-VL-Embedding-2B | Qwen3-VL-4B w 4-bit* | Windows OCR (lub model) |
+| `mid` | 6–10 GB | Qwen3-VL-Embedding-2B | Qwen3-VL-2B w 4-bit* | Windows OCR (lub model) |
+| `lite` | < 6 GB lub CPU | jina-clip-v2 | – (sam OCR) | Windows OCR (fallback: EasyOCR) |
 
-\* Gdy 4-bit nie zadziała (brak `bitsandbytes`), program sam przełączy się na Qwen3-VL-2B w pełnej precyzji.
+\* Gdy 4-bit nie zadziała (brak `bitsandbytes`), program sam przełączy się na Qwen3-VL-2B w pełnej precyzji (bfloat16).
+Na Windowsie silnik OCR korzysta z wbudowanego API systemowego (szybko i bez pobierania modeli). Gdy Windows OCR jest niedostępny (np. na Linuksie), tekst przepisuje model opisów (lub EasyOCR w profilu `lite`).
 
 Modele pobierają się z Hugging Face przy pierwszym uruchomieniu (kilka GB).
 
@@ -72,7 +78,8 @@ Wymagany Python 3.10 lub nowszy.
    ```bash
    pip install -r requirements.txt
    ```
-   Dla profilu `lite` z OCR dodatkowo: `pip install easyocr`.
+   Na Windowsie biblioteki systemowego OCR (`winrt-*`) instalują się automatycznie z `requirements.txt`.
+   Dla profilu `lite` na systemach bez Windows OCR (np. Linux) opcjonalnie: `pip install easyocr`.
 
 3. **Skonfiguruj `config.json`:**
 
