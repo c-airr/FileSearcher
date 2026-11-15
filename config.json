@@ -1,5 +1,5 @@
 {
-  "FOLDER_ZE_ZDJECIAMI": "F:/POZOSTALOSCI",
+  "FOLDER_ZE_ZDJECIAMI": "",
   "BAZA_DIR": "./filesearcher_db",
   "ROZSZERZENIA": [".jpg", ".jpeg", ".png", ".webp", ".bmp"],
   "IO_WORKERS": 4,
