@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .superpowers/
+docs/superpowers/
 filesearcher_db/
 chroma_db/
 dist/
